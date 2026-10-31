@@ -17,19 +17,28 @@
 </div>
 
 <div class="container">
+    <div class="page-header">
+        <div>
+            <span class="eyebrow">Ride management</span>
+            <h1 style="margin:0;">Ride #<span th:text="${ride.id}"></span>
+                <span class="badge" th:classappend="'badge-' + ${#strings.toLowerCase(ride.status)}" th:text="${ride.status}"></span>
+            </h1>
+        </div>
+        <span class="header-pill">Driver view</span>
+    </div>
+
     <div class="card">
-        <h1>Ride #<span th:text="${ride.id}"></span>
-            <span class="badge" th:classappend="'badge-' + ${#strings.toLowerCase(ride.status)}" th:text="${ride.status}"></span>
-        </h1>
         <p class="muted" th:text="${ride.vehicleType} + ' · Requested ' + ${#temporals.format(ride.requestedAt, 'dd MMM, hh:mm a')}"></p>
 
         <div class="alert alert-info">
             Rider: <strong th:text="${ride.riderName}"></strong>
         </div>
 
-        <div id="map" class="map"
+           <div id="map" class="map"
+               th:data-driver-id="${ride.driverId}" th:data-status="${ride.status}"
              th:data-pickup-lat="${ride.pickupLat}" th:data-pickup-lng="${ride.pickupLng}"
              th:data-drop-lat="${ride.dropLat}" th:data-drop-lng="${ride.dropLng}"></div>
+           <p class="muted" id="driverLocationStatus" style="margin-bottom:0;">Share your live location with the rider while this ride is active.</p>
 
         <div class="row" th:if="${ride.status.name() == 'DRIVER_ASSIGNED'}">
             <form th:action="@{'/driver/ride/' + ${ride.id} + '/accept'}" method="post">
@@ -80,6 +89,40 @@
     L.marker(pickup, { icon: pickupIcon }).addTo(map).bindPopup('Pickup');
     L.marker(drop, { icon: dropIcon }).addTo(map).bindPopup('Destination');
     map.fitBounds([pickup, drop], { padding: [40, 40] });
+
+    const driverId = mapEl.dataset.driverId;
+    const rideStatus = mapEl.dataset.status;
+    const locationStatus = document.getElementById('driverLocationStatus');
+    const activeRide = ['DRIVER_ASSIGNED', 'ACCEPTED', 'ONGOING'].includes(rideStatus);
+
+    function publishLocation(position) {
+        const { latitude, longitude } = position.coords;
+        fetch(`/api/drivers/${driverId}/location`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lat: latitude, lng: longitude })
+        }).then(response => {
+            if (!response.ok) throw new Error('Location update failed');
+            locationStatus.textContent = 'Live location is being shared with the rider.';
+        }).catch(() => {
+            locationStatus.textContent = 'Could not send your location. Check your connection.';
+        });
+    }
+
+    function requestLocation() {
+        navigator.geolocation.getCurrentPosition(publishLocation, () => {
+            locationStatus.textContent = 'Allow location access to share your live position with the rider.';
+        }, { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
+    }
+
+    if (activeRide && driverId && navigator.geolocation) {
+        requestLocation();
+        window.setInterval(requestLocation, 5000);
+    } else if (activeRide) {
+        locationStatus.textContent = 'This browser does not support live location sharing.';
+    } else {
+        locationStatus.style.display = 'none';
+    }
 </script>
 </body>
 </html>

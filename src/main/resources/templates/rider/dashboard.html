@@ -17,17 +17,56 @@
 </div>
 
 <div class="container">
-    <div class="card">
-        <h1>Book a ride</h1>
-        <p class="muted">Click on the map to set your pickup point, then click again to set your destination.</p>
+    <div class="page-header">
+        <div>
+            <span class="eyebrow">Ride booking</span>
+            <h1 style="margin:0;">Book a ride</h1>
+        </div>
+        <span class="header-pill">Fast & secure</span>
+    </div>
+
+    <div class="ride-hero">
+        <div class="row" style="align-items:center; margin-bottom:12px;">
+            <div style="flex:2; min-width:220px;">
+                <h2 style="margin:0; font-size:2rem; letter-spacing:-0.04em;">Where to?</h2>
+                <p class="muted" style="margin:8px 0 0; color: rgba(255,255,255,0.8);">Fast pickups. Trusted drivers. Transparent fares.</p>
+            </div>
+            <div style="flex:1; min-width:180px; text-align:right;">
+                <button type="button" class="btn btn-primary" onclick="useMyLocation()" style="background: #fff; color: #111827; box-shadow: none;">Use my location</button>
+            </div>
+        </div>
+
+        <div class="route-card">
+            <div class="route-line">
+                <div class="route-dots">
+                    <span class="start"></span>
+                    <span class="line"></span>
+                    <span class="end"></span>
+                </div>
+                <div style="flex:1; display:grid; gap:12px;">
+                    <div style="padding:10px 12px; border-radius:12px; background: rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.08);">
+                        <div class="muted" style="font-size:0.73rem; letter-spacing:0.08em; text-transform:uppercase; color: rgba(255,255,255,0.75);">Pickup</div>
+                        <div id="pickupDisplay" style="font-weight:700; margin-top:4px; min-height:22px;">Choose a pickup suggestion</div>
+                    </div>
+                    <div style="padding:10px 12px; border-radius:12px; background: rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.08);">
+                        <div class="muted" style="font-size:0.73rem; letter-spacing:0.08em; text-transform:uppercase; color: rgba(255,255,255,0.75);">Destination</div>
+                        <div id="dropDisplay" style="font-weight:700; margin-top:4px; min-height:22px;">Choose a destination suggestion</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card" style="margin-top:24px;">
         <div class="alert alert-error" th:if="${error}" th:text="${error}"></div>
 
         <div class="row" style="margin-bottom:12px;">
-            <button type="button" class="btn btn-outline btn-sm" id="modePickupBtn" onclick="setMode('pickup')">📍 Set Pickup</button>
-            <button type="button" class="btn btn-outline btn-sm" id="modeDropBtn" onclick="setMode('drop')">🏁 Set Destination</button>
-            <button type="button" class="btn btn-outline btn-sm" onclick="useMyLocation()">🎯 Use My Location for Pickup</button>
+            <button type="button" class="btn btn-outline btn-sm" id="modePickupBtn" onclick="setActiveField('pickup')">📍 Pickup</button>
+            <button type="button" class="btn btn-outline btn-sm" id="modeDropBtn" onclick="setActiveField('drop')">🏁 Destination</button>
+            <button type="button" class="btn btn-outline btn-sm" onclick="useMyLocation()">🎯 Use My Location</button>
         </div>
 
+        <p class="muted" style="margin:0 0 10px;">Choose a point above, then click the map, or type an address and select a suggestion.</p>
         <div id="map" class="map"></div>
 
         <form th:action="@{/rider/book}" method="post" id="bookForm">
@@ -36,14 +75,16 @@
             <input type="hidden" name="dropLat" id="dropLat">
             <input type="hidden" name="dropLng" id="dropLng">
 
-            <div class="row">
-                <div class="form-group">
+            <div class="row" style="position: relative;">
+                <div class="form-group" style="position: relative;">
                     <label>Pickup</label>
-                    <input type="text" id="pickupDisplay" readonly placeholder="Click map to set pickup">
+                    <input type="text" id="pickupField" placeholder="Enter pickup location" autocomplete="off">
+                    <div id="pickupSuggestions" class="suggestions" style="display:none;"></div>
                 </div>
-                <div class="form-group">
+                <div class="form-group" style="position: relative;">
                     <label>Destination</label>
-                    <input type="text" id="dropDisplay" readonly placeholder="Click map to set destination">
+                    <input type="text" id="dropField" placeholder="Enter destination location" autocomplete="off">
+                    <div id="dropSuggestions" class="suggestions" style="display:none;"></div>
                 </div>
             </div>
 
@@ -54,7 +95,7 @@
                 </select>
             </div>
 
-            <p class="muted" id="distancePreview"></p>
+            <p class="muted" id="distancePreview" style="font-weight:700;">Select both pickup and destination to continue.</p>
 
             <button type="submit" class="btn btn-primary btn-block" id="submitBtn" disabled>Request Ride</button>
         </form>
@@ -70,14 +111,152 @@
     }).addTo(map);
 
     let pickupMarker = null, dropMarker = null;
-    let mode = 'pickup';
+    let activeField = 'pickup';
+    let pickupCoords = null;
+    let dropCoords = null;
+    const searchTimers = { pickup: null, drop: null };
+    const searchRequests = { pickup: 0, drop: 0 };
 
-    function setMode(m) {
-        mode = m;
-        document.getElementById('modePickupBtn').classList.toggle('btn-primary', m === 'pickup');
-        document.getElementById('modeDropBtn').classList.toggle('btn-primary', m === 'drop');
+    function setActiveField(field) {
+        activeField = field;
+        document.getElementById('modePickupBtn').classList.toggle('btn-primary', field === 'pickup');
+        document.getElementById('modeDropBtn').classList.toggle('btn-primary', field === 'drop');
     }
-    setMode('pickup');
+    setActiveField('pickup');
+
+    function searchPlaces(query, field) {
+        if (!query || query.trim().length < 2) {
+            document.getElementById(field + 'Suggestions').style.display = 'none';
+            return;
+        }
+
+        const requestId = ++searchRequests[field];
+        fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&q=${encodeURIComponent(query)}`)
+            .then(r => r.json())
+            .then(results => {
+                if (requestId !== searchRequests[field]) return;
+                const list = document.getElementById(field + 'Suggestions');
+                if (!results || results.length === 0) {
+                    list.replaceChildren();
+                    const empty = document.createElement('div');
+                    empty.className = 'suggestion-item muted';
+                    empty.textContent = 'No places found';
+                    list.appendChild(empty);
+                    list.style.display = 'block';
+                    return;
+                }
+
+                list.replaceChildren();
+                results.forEach(item => {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'suggestion-item';
+                    button.textContent = item.display_name;
+                    button.addEventListener('click', () => {
+                        selectPlace(field, item.display_name, parseFloat(item.lat), parseFloat(item.lon));
+                    });
+                    list.appendChild(button);
+                });
+                list.style.display = 'block';
+            })
+            .catch(() => {
+                if (requestId !== searchRequests[field]) return;
+                const list = document.getElementById(field + 'Suggestions');
+                list.replaceChildren();
+                const error = document.createElement('div');
+                error.className = 'suggestion-item muted';
+                error.textContent = 'Unable to load suggestions';
+                list.appendChild(error);
+                list.style.display = 'block';
+            });
+    }
+
+    function selectPlace(field, placeName, lat, lng) {
+        if (field === 'pickup') {
+            pickupCoords = { lat, lng };
+            if (pickupMarker) map.removeLayer(pickupMarker);
+            pickupMarker = L.marker([lat, lng]).addTo(map)
+                .bindPopup('Pickup');
+            document.getElementById('pickupLat').value = lat;
+            document.getElementById('pickupLng').value = lng;
+            document.getElementById('pickupDisplay').textContent = placeName;
+            document.getElementById('pickupField').value = placeName;
+            setActiveField('drop');
+        } else {
+            dropCoords = { lat, lng };
+            if (dropMarker) map.removeLayer(dropMarker);
+            dropMarker = L.marker([lat, lng]).addTo(map)
+                .bindPopup('Destination');
+            document.getElementById('dropLat').value = lat;
+            document.getElementById('dropLng').value = lng;
+            document.getElementById('dropDisplay').textContent = placeName;
+            document.getElementById('dropField').value = placeName;
+        }
+
+        document.getElementById(field + 'Suggestions').style.display = 'none';
+        map.setView([lat, lng], 14);
+        updatePreviewAndSubmitState();
+    }
+
+    function attachSearchListeners(field) {
+        const input = document.getElementById(field + 'Field');
+        const list = document.getElementById(field + 'Suggestions');
+
+        input.addEventListener('input', function () {
+            const query = this.value.trim();
+            if (field === 'pickup' && pickupCoords) {
+                pickupCoords = null;
+                if (pickupMarker) map.removeLayer(pickupMarker);
+                pickupMarker = null;
+                document.getElementById('pickupLat').value = '';
+                document.getElementById('pickupLng').value = '';
+                document.getElementById('pickupDisplay').textContent = 'Choose a pickup suggestion';
+            } else if (field === 'drop' && dropCoords) {
+                dropCoords = null;
+                if (dropMarker) map.removeLayer(dropMarker);
+                dropMarker = null;
+                document.getElementById('dropLat').value = '';
+                document.getElementById('dropLng').value = '';
+                document.getElementById('dropDisplay').textContent = 'Choose a destination suggestion';
+            }
+            updatePreviewAndSubmitState();
+            if (!query) {
+                list.style.display = 'none';
+                return;
+            }
+            if (field === activeField) {
+                window.clearTimeout(searchTimers[field]);
+                searchTimers[field] = window.setTimeout(() => searchPlaces(query, field), 350);
+            }
+        });
+
+        input.addEventListener('focus', function () {
+            setActiveField(field);
+            if (this.value.trim()) {
+                searchPlaces(this.value.trim(), field);
+            }
+        });
+
+        input.addEventListener('keydown', function (event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                if (this.value.trim()) {
+                    searchPlaces(this.value.trim(), field);
+                }
+            }
+        });
+    }
+
+    attachSearchListeners('pickup');
+    attachSearchListeners('drop');
+
+    document.getElementById('pickupField').addEventListener('blur', function () {
+        setTimeout(() => document.getElementById('pickupSuggestions').style.display = 'none', 150);
+    });
+
+    document.getElementById('dropField').addEventListener('blur', function () {
+        setTimeout(() => document.getElementById('dropSuggestions').style.display = 'none', 150);
+    });
 
     function reverseGeocode(lat, lng, callback) {
         fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
@@ -86,50 +265,81 @@
             .catch(() => callback(`${lat.toFixed(5)}, ${lng.toFixed(5)}`));
     }
 
+    map.on('click', function (event) {
+        const field = activeField;
+        const { lat, lng } = event.latlng;
+        const fallbackName = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+
+        selectPlace(field, fallbackName, lat, lng);
+        reverseGeocode(lat, lng, placeName => {
+            document.getElementById(field + 'Display').textContent = placeName;
+            document.getElementById(field + 'Field').value = placeName;
+        });
+    });
+
     function updatePreviewAndSubmitState() {
-        const ready = pickupMarker && dropMarker;
+        const ready = pickupCoords && dropCoords;
         document.getElementById('submitBtn').disabled = !ready;
         if (ready) {
-            const d = map.distance(pickupMarker.getLatLng(), dropMarker.getLatLng()) / 1000;
+            const d = map.distance(L.latLng(pickupCoords.lat, pickupCoords.lng), L.latLng(dropCoords.lat, dropCoords.lng)) / 1000;
             document.getElementById('distancePreview').innerText = 'Approx. distance: ' + d.toFixed(2) + ' km';
+        } else {
+            document.getElementById('distancePreview').innerText = 'Select both pickup and destination to continue.';
         }
     }
-
-    map.on('click', function (e) {
-        const { lat, lng } = e.latlng;
-        if (mode === 'pickup') {
-            if (pickupMarker) map.removeLayer(pickupMarker);
-            pickupMarker = L.marker([lat, lng], { title: 'Pickup' }).addTo(map).bindPopup('Pickup').openPopup();
-            document.getElementById('pickupLat').value = lat;
-            document.getElementById('pickupLng').value = lng;
-            reverseGeocode(lat, lng, (addr) => document.getElementById('pickupDisplay').value = addr);
-            setMode('drop');
-        } else {
-            if (dropMarker) map.removeLayer(dropMarker);
-            dropMarker = L.marker([lat, lng], { title: 'Destination' }).addTo(map).bindPopup('Destination').openPopup();
-            document.getElementById('dropLat').value = lat;
-            document.getElementById('dropLng').value = lng;
-            reverseGeocode(lat, lng, (addr) => document.getElementById('dropDisplay').value = addr);
-        }
-        updatePreviewAndSubmitState();
-    });
 
     function useMyLocation() {
         if (!navigator.geolocation) { alert('Geolocation not supported by your browser'); return; }
         navigator.geolocation.getCurrentPosition(function (pos) {
             const lat = pos.coords.latitude, lng = pos.coords.longitude;
             map.setView([lat, lng], 14);
-            if (pickupMarker) map.removeLayer(pickupMarker);
-            pickupMarker = L.marker([lat, lng], { title: 'Pickup' }).addTo(map).bindPopup('Pickup').openPopup();
-            document.getElementById('pickupLat').value = lat;
-            document.getElementById('pickupLng').value = lng;
-            reverseGeocode(lat, lng, (addr) => document.getElementById('pickupDisplay').value = addr);
-            setMode('drop');
-            updatePreviewAndSubmitState();
+            reverseGeocode(lat, lng, (addr) => {
+                selectPlace('pickup', addr, lat, lng);
+                document.getElementById('pickupField').value = addr;
+            });
+            setActiveField('drop');
         }, function () {
-            alert('Could not get your location. Please click the map instead.');
+            alert('Could not get your location. Please type the location manually.');
         });
     }
+
+    const style = document.createElement('style');
+    style.textContent = `
+        .suggestions {
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            right: 0;
+            z-index: 50;
+            background: #ffffff;
+            border: 1px solid rgba(15, 23, 42, 0.12);
+            border-radius: 12px;
+            box-shadow: 0 18px 35px rgba(15, 23, 42, 0.14);
+            max-height: 220px;
+            overflow-y: auto;
+            padding: 8px;
+        }
+        .suggestion-item {
+            display: block;
+            width: 100%;
+            text-align: left;
+            border: none;
+            background: transparent;
+            color: #0f172a;
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 0.93rem;
+            cursor: pointer;
+        }
+        .suggestion-item:hover {
+            background: #f4f7fb;
+        }
+        #map { cursor: crosshair; }
+        .muted {
+            color: #64748b;
+        }
+    `;
+    document.head.appendChild(style);
 </script>
 </body>
 </html>

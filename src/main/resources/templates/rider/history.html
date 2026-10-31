@@ -15,9 +15,15 @@
 </div>
 
 <div class="container">
-    <div class="card">
-        <h1>My Rides</h1>
+    <div class="page-header">
+        <div>
+            <span class="eyebrow">Trip history</span>
+            <h1 style="margin:0;">My Rides</h1>
+        </div>
+        <span class="header-pill">Rider</span>
+    </div>
 
+    <div class="card">
         <div th:if="${#lists.isEmpty(rides)}" class="empty-state">
             You haven't booked any rides yet.
         </div>

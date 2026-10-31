@@ -6,58 +6,95 @@
     <link rel="stylesheet" th:href="@{/css/style.css}">
 </head>
 <body>
-<div class="container-narrow">
-    <div class="card">
-        <h1>Create your account</h1>
-        <p class="muted">Sign up as a rider to book trips, or as a driver to earn.</p>
+<div class="auth-layout">
+    <aside class="auth-visual">
+        <div class="logo-row">
+            <span class="brand-mark">🚗</span>
+            <span>RideShare</span>
+        </div>
 
-        <div class="alert alert-error" th:if="${error}" th:text="${error}"></div>
+        <div class="auth-copy">
+            <span class="eyebrow" style="color: rgba(255,255,255,0.8);">Join the platform</span>
+            <h1>Start driving or riding with confidence.</h1>
+            <p>Build your profile, choose your role, and unlock premium trip management for riders and drivers alike.</p>
+        </div>
 
-        <form th:action="@{/register}" method="post" id="registerForm">
-            <div class="form-group">
-                <label>I am a</label>
-                <select name="role" id="roleSelect" onchange="toggleDriverFields()">
-                    <option value="RIDER">Rider (book rides)</option>
-                    <option value="DRIVER">Driver (give rides)</option>
-                </select>
+        <div class="feature-list">
+            <div class="feature-item">
+                <strong>Quick setup</strong>
+                <span>Create your account in under a minute</span>
             </div>
-            <div class="form-group">
-                <label>Full Name</label>
-                <input type="text" name="name" required placeholder="Jane Doe">
+            <div class="feature-item">
+                <strong>Better earnings</strong>
+                <span>Manage demand, rides, and trips in one place</span>
             </div>
-            <div class="form-group">
-                <label>Email</label>
-                <input type="email" name="email" required placeholder="you@example.com">
+            <div class="feature-item">
+                <strong>Shared trust</strong>
+                <span>Transparent pricing and route visibility</span>
             </div>
-            <div class="form-group">
-                <label>Phone</label>
-                <input type="text" name="phone" required placeholder="9876543210">
+            <div class="feature-item">
+                <strong>Real-time</strong>
+                <span>Track updates as they happen</span>
             </div>
-            <div class="form-group">
-                <label>Password</label>
-                <input type="password" name="password" required placeholder="Choose a password">
+        </div>
+    </aside>
+
+    <main class="auth-panel">
+        <div class="card auth-card">
+            <div class="auth-header">
+                <span class="eyebrow">Create account</span>
+                <h2>Sign up</h2>
+                <p>Start as a rider or join as a driver.</p>
             </div>
 
-            <div id="driverFields" style="display:none;">
+            <div class="alert alert-error" th:if="${error}" th:text="${error}"></div>
+
+            <form th:action="@{/register}" method="post" id="registerForm">
                 <div class="form-group">
-                    <label>Vehicle Type</label>
-                    <select name="vehicleType">
-                        <option th:each="vt : ${vehicleTypes}" th:value="${vt}" th:text="${vt}"></option>
+                    <label>I am a</label>
+                    <select name="role" id="roleSelect" onchange="toggleDriverFields()">
+                        <option value="RIDER">Rider (book rides)</option>
+                        <option value="DRIVER">Driver (give rides)</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Vehicle Number</label>
-                    <input type="text" name="vehicleNumber" placeholder="MH12AB1234">
+                    <label>Full Name</label>
+                    <input type="text" name="name" required placeholder="Jane Doe">
                 </div>
-            </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" name="email" required placeholder="you@example.com">
+                </div>
+                <div class="form-group">
+                    <label>Phone</label>
+                    <input type="text" name="phone" required placeholder="9876543210">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" name="password" required placeholder="Choose a password">
+                </div>
 
-            <button type="submit" class="btn btn-primary btn-block">Create Account</button>
-        </form>
+                <div id="driverFields" style="display:none;">
+                    <div class="form-group">
+                        <label>Vehicle Type</label>
+                        <select name="vehicleType">
+                            <option th:each="vt : ${vehicleTypes}" th:value="${vt}" th:text="${vt}"></option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Vehicle Number</label>
+                        <input type="text" name="vehicleNumber" placeholder="MH12AB1234">
+                    </div>
+                </div>
 
-        <p class="muted" style="margin-top:16px; text-align:center;">
-            Already have an account? <a th:href="@{/login}">Log in</a>
-        </p>
-    </div>
+                <button type="submit" class="btn btn-primary btn-block">Create Account</button>
+            </form>
+
+            <p class="auth-subtle">
+                Already have an account? <a th:href="@{/login}">Log in</a>
+            </p>
+        </div>
+    </main>
 </div>
 
 <script>

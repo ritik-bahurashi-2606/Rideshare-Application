@@ -17,34 +17,77 @@
 </div>
 
 <div class="container" id="driverData" th:data-driver-id="${user.id}">
-    <div class="card">
-        <div class="toggle-row">
-            <div>
-                <span class="status-dot" th:classappend="${user.available} ? 'online' : 'offline'"></span>
-                <strong th:text="${user.available} ? 'You are Online' : 'You are Offline'"></strong>
-                <p class="muted" style="margin:4px 0 0;">Go online to start receiving ride requests near you.</p>
+    <div class="page-header">
+        <div>
+            <span class="eyebrow">Driver portal</span>
+            <h1 style="margin:0;">Operations dashboard</h1>
+        </div>
+        <span class="header-pill">Live</span>
+    </div>
+
+    <div class="summary-grid">
+        <div class="metric-card">
+            <span class="metric-label">Status</span>
+            <span class="metric-value" th:text="${user.available} ? 'Online' : 'Offline'">Offline</span>
+        </div>
+        <div class="metric-card">
+            <span class="metric-label">Availability</span>
+            <span class="metric-value" th:text="${user.available} ? 'Ready' : 'Paused'">Paused</span>
+        </div>
+        <div class="metric-card">
+            <span class="metric-label">Trips</span>
+            <span class="metric-value" th:text="${activeRide != null ? '1 active' : '0 active'}">0 active</span>
+        </div>
+    </div>
+
+    <div class="dashboard-shell">
+        <div class="card">
+            <div class="toggle-row" style="padding-top:0;">
+                <div>
+                    <span class="status-dot" th:classappend="${user.available} ? 'online' : 'offline'"></span>
+                    <strong th:text="${user.available} ? 'You are Online' : 'You are Offline'"></strong>
+                    <p class="muted" style="margin:6px 0 0;">Go online to start receiving ride requests near you.</p>
+                </div>
+                <form th:action="@{/driver/availability}" method="post">
+                    <input type="hidden" name="available" th:value="${!user.available}">
+                    <button type="submit" class="btn" th:classappend="${user.available} ? 'btn-danger' : 'btn-success'"
+                            th:text="${user.available} ? 'Go Offline' : 'Go Online'"></button>
+                </form>
             </div>
-            <form th:action="@{/driver/availability}" method="post">
-                <input type="hidden" name="available" th:value="${!user.available}">
-                <button type="submit" class="btn" th:classappend="${user.available} ? 'btn-danger' : 'btn-success'"
-                        th:text="${user.available} ? 'Go Offline' : 'Go Online'"></button>
-            </form>
+
+            <div id="map" class="map"></div>
+            <p class="muted" id="locationStatus">Waiting for your location…</p>
         </div>
 
-        <div id="map" class="map"></div>
-        <p class="muted" id="locationStatus">Waiting for your location…</p>
-    </div>
+        <aside class="stack">
+            <div class="card" th:if="${activeRide != null}">
+                <h2>Active Ride</h2>
+                <div class="info-list">
+                    <div class="info-row">
+                        <strong>Ride ID</strong>
+                        <span>#<span th:text="${activeRide.id}"></span></span>
+                    </div>
+                    <div class="info-row">
+                        <strong>Rider</strong>
+                        <span th:text="${activeRide.riderName}"></span>
+                    </div>
+                    <div class="info-row">
+                        <strong>Status</strong>
+                        <span class="badge" th:classappend="'badge-' + ${#strings.toLowerCase(activeRide.status)}" th:text="${activeRide.status}"></span>
+                    </div>
+                </div>
+                <div class="quick-actions" style="margin-top:18px;">
+                    <a th:href="@{'/driver/ride/' + ${activeRide.id}}" class="btn btn-primary btn-block">Open Ride</a>
+                </div>
+            </div>
 
-    <div class="card" th:if="${activeRide != null}">
-        <h2>Active Ride #<span th:text="${activeRide.id}"></span>
-            <span class="badge" th:classappend="'badge-' + ${#strings.toLowerCase(activeRide.status)}" th:text="${activeRide.status}"></span>
-        </h2>
-        <p th:text="'Rider: ' + ${activeRide.riderName}"></p>
-        <a th:href="@{'/driver/ride/' + ${activeRide.id}}" class="btn btn-primary">Open Ride</a>
-    </div>
-
-    <div class="card empty-state" th:if="${activeRide == null and user.available}">
-        Looking for ride requests… stay online and keep this page open.
+            <div class="card" th:if="${activeRide == null}">
+                <h2>Dispatch status</h2>
+                <div class="empty-state" style="padding:20px 10px 6px;">
+                    Looking for ride requests… stay online and keep this page open.
+                </div>
+            </div>
+        </aside>
     </div>
 </div>
 
@@ -86,11 +129,9 @@
         navigator.geolocation.getCurrentPosition(onPosition, () => {
             document.getElementById('locationStatus').innerText = 'Could not access location. Please allow location permissions.';
         });
-        // Periodically refresh + push location (works alongside watchPosition for reliability)
         setInterval(() => navigator.geolocation.getCurrentPosition(onPosition), 5000);
     }
 
-    // Listen for new ride offers pushed to this driver in real time
     const socket = new SockJS('/ws');
     const client = new window.StompJs.Client({
         webSocketFactory: () => socket,

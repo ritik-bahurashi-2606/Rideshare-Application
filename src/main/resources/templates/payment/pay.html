@@ -15,8 +15,14 @@
 </div>
 
 <div class="container-narrow">
+    <div class="page-header" style="margin-bottom: 10px;">
+        <div>
+            <span class="eyebrow">Checkout</span>
+            <h1 style="margin:0;">Payment details</h1>
+        </div>
+    </div>
+
     <div class="card">
-        <h1>Checkout</h1>
         <p class="muted">Ride #<span th:text="${ride.id}"></span> · <span th:text="${ride.vehicleType}"></span></p>
 
         <p class="fare-amount">₹ <span th:text="${payment.amount}"></span></p>

@@ -15,9 +15,15 @@
 </div>
 
 <div class="container">
-    <div class="card">
-        <h1>My Trips</h1>
+    <div class="page-header">
+        <div>
+            <span class="eyebrow">Trip history</span>
+            <h1 style="margin:0;">My Trips</h1>
+        </div>
+        <span class="header-pill">Driver</span>
+    </div>
 
+    <div class="card">
         <div th:if="${#lists.isEmpty(rides)}" class="empty-state">
             No trips yet. Go online from the dashboard to start receiving requests.
         </div>

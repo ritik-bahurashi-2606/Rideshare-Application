@@ -15,9 +15,15 @@
 </div>
 
 <div class="container-narrow">
+    <div class="page-header" style="margin-bottom: 10px;">
+        <div>
+            <span class="eyebrow">Receipt</span>
+            <h1 style="margin:0;">Payment Successful</h1>
+        </div>
+    </div>
+
     <div class="card" style="text-align:center;">
-        <div style="font-size:48px;">✅</div>
-        <h1>Payment Successful</h1>
+        <div style="font-size:48px; margin-bottom:6px;">✅</div>
         <p class="fare-amount">₹ <span th:text="${payment.amount}"></span></p>
         <p class="muted" th:text="'Paid via ' + ${payment.method}"></p>
 

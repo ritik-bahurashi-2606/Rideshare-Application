@@ -13,6 +13,20 @@ underlying REST API.
 - SockJS + STOMP.js (real-time updates over WebSocket)
 - Maven
 
+## Run with Docker Compose
+Docker Compose starts the application and a persistent MySQL 8.4 database.
+
+1. Copy `.env.example` to `.env` and replace both password values with long, unique passwords.
+2. Run `docker compose up --build` from the project root.
+3. Open `http://localhost:8181` (or the port configured by `APP_PORT` in `.env`).
+
+Stop the services with `docker compose down`. The database volume is retained;
+to intentionally remove its data, run `docker compose down -v`.
+
+For deployment, configure the platform or reverse proxy to provide HTTPS and
+WebSocket forwarding. Browser geolocation used for live driver tracking requires
+a secure context (HTTPS, except on localhost). Never commit the real `.env` file.
+
 ## What's included
 - **Register/Login** as a Rider or Driver (session-based, BCrypt-hashed passwords)
 - **Book a ride**: click the map to set pickup & destination (with reverse-geocoded
@@ -33,26 +47,21 @@ underlying REST API.
 
 ## 2. MySQL Setup
 No need to manually create the schema — `spring.jpa.hibernate.ddl-auto=update`
-will create tables automatically on first run. You only need the database
-user to exist and have privileges. The app will auto-create the
-`rideshare_db` database itself (via `createDatabaseIfNotExist=true`).
+will create tables automatically on first run. When running locally outside
+Docker, configure `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, and
+`SPRING_DATASOURCE_PASSWORD` in your environment to match your MySQL server.
+Inside Compose, these settings are configured from `.env` and the app connects
+to the `db` service automatically.
 
-Update credentials in `src/main/resources/application.properties` if your
-MySQL username/password isn't `root` / `root`:
-
-```properties
-spring.datasource.url=jdbc:mysql://localhost:3306/rideshare_db?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC
-spring.datasource.username=root
-spring.datasource.password=root
-```
+Set `SERVER_PORT` to change the application port; it defaults to `8181`.
 
 ## 3. Import into Eclipse
 1. `File` → `Import` → `Maven` → `Existing Maven Projects`
 2. Browse to the extracted `rideshare-backend` folder → `Finish`
 3. Eclipse (m2e) will download dependencies automatically. Wait for the build to finish.
 4. Right-click `RideshareBackendApplication.java` → `Run As` → `Java Application`
-5. Server starts on **http://localhost:8080**
-6. Open **http://localhost:8080** in your browser - you'll land on the login page.
+5. Server starts on **http://localhost:8181**
+6. Open **http://localhost:8181** in your browser - you'll land on the login page.
    Click "Register here" to create a Rider account and a Driver account
    (use two different browsers, or one normal + one incognito window, so you
    can be logged in as both at once to test the full flow).

@@ -1,0 +1,15 @@
+name: Keepalive Ping Service
+
+on:
+  schedule:
+    # Runs every 14 minutes
+    - cron: '*/14 * * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub UI for testing
+
+jobs:
+  ping-service:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send HTTP Request to Web Service
+        run: |
+          curl -s -f https://rideshare-application-bhx5.onrender.com || echo "Service ping failed or warming up"
